@@ -1,16 +1,16 @@
 import { createContext, useContext, useMemo } from "react";
-import useLocalStorage from "../hooks/useLocalStorage.js";
+import useUserStorage from "../hooks/useUserStorage.js";
 
 const DiaryContext = createContext(null);
 
 export function DiaryProvider({ children }) {
-  const [diary, setDiary] = useLocalStorage("gather-v2-diary", {});
-  const [customFoods, setCustomFoods] = useLocalStorage("gather-v2-custom-foods", []);
-  const [savedMeals, setSavedMeals] = useLocalStorage("gather-v2-saved-meals", []);
-  const [recentFoods, setRecentFoods] = useLocalStorage("gather-v2-recent-foods", []);
-  const [water, setWater] = useLocalStorage("gather-v2-water", {});
-  const [waterGoal, setWaterGoal] = useLocalStorage("gather-v2-water-goal", 8);
-  const [weights, setWeights] = useLocalStorage("gather-v2-weights", []);
+  const [diary, setDiary] = useUserStorage("gather-v2-diary", {});
+  const [customFoods, setCustomFoods] = useUserStorage("gather-v2-custom-foods", []);
+  const [savedMeals, setSavedMeals] = useUserStorage("gather-v2-saved-meals", []);
+  const [recentFoods, setRecentFoods] = useUserStorage("gather-v2-recent-foods", []);
+  const [water, setWater] = useUserStorage("gather-v2-water", {});
+  const [waterGoal, setWaterGoal] = useUserStorage("gather-v2-water-goal", 8);
+  const [weights, setWeights] = useUserStorage("gather-v2-weights", []);
 
   const value = useMemo(() => ({
     diary, setDiary, customFoods, setCustomFoods, savedMeals, setSavedMeals,

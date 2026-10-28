@@ -2,6 +2,7 @@ import { CalendarDays, Heart, Leaf, NotebookTabs, Settings, ShoppingBasket, User
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { usePlan } from "../../context/PlanContext.jsx";
 import { useProfile } from "../../context/ProfileContext.jsx";
+import LogoutButton from "./LogoutButton.jsx";
 import ThemeToggle from "./ThemeToggle.jsx";
 import { ROUTES } from "../../utils/appFlow.js";
 
@@ -33,7 +34,7 @@ export default function AppLayout() {
         </div>
       </aside>
       <main className="main-content">
-        <header className="topbar"><div className="breadcrumb"><span>GATHER</span><span>/</span><strong>YOUR PERSONAL PLAN</strong></div><div className="topbar-tools"><ThemeToggle /></div></header>
+        <header className="topbar"><div className="breadcrumb"><span>GATHER</span><span>/</span><strong>YOUR PERSONAL PLAN</strong></div><div className="topbar-tools"><ThemeToggle /><LogoutButton /></div></header>
         <div className="page-content"><Outlet /></div>
       </main>
     </div>

@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import useLocalStorage from "../hooks/useLocalStorage.js";
+import { createContext, useContext, useMemo } from "react";
+import useUserStorage from "../hooks/useUserStorage.js";
+import { useTheme } from "./ThemeContext.jsx";
 import { normalizeProfile } from "../utils/calorieCalculator.js";
 import { hasMealPreferences } from "../utils/appFlow.js";
 
@@ -31,42 +32,13 @@ export const createEmptyDraft = () => ({
 });
 
 const ProfileContext = createContext(null);
-const darkQuery = () => (typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null);
-
-// Earlier versions stored a boolean; an explicit "dark" choice is kept, anything else follows the system.
-function legacyTheme() {
-  try {
-    return JSON.parse(window.localStorage.getItem("gather-v2-dark-mode")) === true ? "dark" : "system";
-  } catch {
-    return "system";
-  }
-}
-
-function useSystemDark() {
-  const [systemDark, setSystemDark] = useState(() => Boolean(darkQuery()?.matches));
-  useEffect(() => {
-    const query = darkQuery();
-    if (!query) return undefined;
-    const onChange = (event) => setSystemDark(event.matches);
-    query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
-  }, []);
-  return systemDark;
-}
 
 export function ProfileProvider({ children }) {
-  const [profile, setProfile] = useLocalStorage("gather-v2-profile", null);
-  const [draft, setDraft] = useLocalStorage("gather-v3-wizard-draft", createEmptyDraft());
+  const [profile, setProfile] = useUserStorage("gather-v2-profile", null);
+  const [draft, setDraft] = useUserStorage("gather-v3-wizard-draft", createEmptyDraft());
   // Onboarding became four calculator steps in v5, so older saved step numbers are not reused.
-  const [step, setStep] = useLocalStorage("gather-v5-onboarding-step", 0);
-  const [theme, setTheme] = useLocalStorage("gather-v3-theme", legacyTheme);
-  const systemDark = useSystemDark();
-  const darkMode = theme === "dark" || (theme === "system" && systemDark);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("theme-dark", darkMode);
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", darkMode ? "#171e18" : "#f6f7f2");
-  }, [darkMode]);
+  const [step, setStep] = useUserStorage("gather-v5-onboarding-step", 0);
+  const { darkMode, setDarkMode } = useTheme();
 
   const value = useMemo(() => ({
     profile,
@@ -76,7 +48,7 @@ export function ProfileProvider({ children }) {
     step,
     setStep,
     darkMode,
-    setDarkMode: (dark) => setTheme(dark ? "dark" : "light"),
+    setDarkMode,
     beginWizard(existingProfile = null) {
       if (existingProfile) {
         setDraft({ ...createEmptyDraft(), ...normalizeProfile(existingProfile), preferencesSet: hasMealPreferences(existingProfile) });
@@ -87,7 +59,7 @@ export function ProfileProvider({ children }) {
       setDraft(createEmptyDraft());
       setStep(0);
     },
-  }), [profile, setProfile, draft, setDraft, step, setStep, darkMode, setTheme]);
+  }), [profile, setProfile, draft, setDraft, step, setStep, darkMode, setDarkMode]);
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;
 }

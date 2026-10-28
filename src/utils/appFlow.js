@@ -3,6 +3,7 @@ import { CALORIE_ROUNDING } from "./nutritionConstants.js";
 
 // The app's screens in the order a new user meets them.
 export const ROUTES = Object.freeze({
+  login: "/login",
   onboarding: "/onboarding",
   results: "/results",
   dashboard: "/dashboard",

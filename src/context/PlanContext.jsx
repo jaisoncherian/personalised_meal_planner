@@ -1,13 +1,13 @@
 import { createContext, useContext, useMemo } from "react";
-import useLocalStorage from "../hooks/useLocalStorage.js";
+import useUserStorage from "../hooks/useUserStorage.js";
 
 const PlanContext = createContext(null);
 
 export function PlanProvider({ children }) {
-  const [plan, setPlan] = useLocalStorage("gather-v2-plan", null);
-  const [favorites, setFavorites] = useLocalStorage("gather-v2-favorites", []);
-  const [groceryChecks, setGroceryChecks] = useLocalStorage("gather-v2-grocery-checks", []);
-  const [onlineRecipes, setOnlineRecipes] = useLocalStorage("gather-v2-online-recipes", true);
+  const [plan, setPlan] = useUserStorage("gather-v2-plan", null);
+  const [favorites, setFavorites] = useUserStorage("gather-v2-favorites", []);
+  const [groceryChecks, setGroceryChecks] = useUserStorage("gather-v2-grocery-checks", []);
+  const [onlineRecipes, setOnlineRecipes] = useUserStorage("gather-v2-online-recipes", true);
 
   const value = useMemo(() => ({
     plan,

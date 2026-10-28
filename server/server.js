@@ -1,67 +1,40 @@
-import cors from "cors";
 import dotenv from "dotenv";
-import express from "express";
-import rateLimit from "express-rate-limit";
-import helmet from "helmet";
+import { createApp } from "./app.js";
+import { createMemoryStore } from "./memoryStore.js";
+import { createSupabaseClient } from "./supabase.js";
+import { createSupabaseStore } from "./supabaseStore.js";
 
 dotenv.config();
 
-const app = express();
 const port = Number(process.env.PORT) || 3001;
-const apiKey = process.env.SPOONACULAR_API_KEY;
-const apiBaseUrl = "https://api.spoonacular.com";
-const allowedSearchParams = new Set([
-  "diet", "intolerances", "excludeIngredients", "cuisine", "maxReadyTime",
-  "minCalories", "maxCalories", "maxSugar", "maxSodium", "maxSaturatedFat",
-  "type", "addRecipeNutrition", "number", "offset",
-]);
+const RETRY_MS = 30 * 1000;
+let store = null;
 
-app.use(helmet());
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || /^http:\/\/localhost:\d+$/ }));
-app.use(express.json({ limit: "32kb" }));
-app.use("/api", rateLimit({
-  windowMs: 60 * 1000,
-  limit: 30,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
-}));
-
-async function forward(url, res) {
-  if (!apiKey) {
-    return res.status(503).json({ error: "Recipe API is not configured. Add SPOONACULAR_API_KEY to the server environment." });
+// The server starts even if Supabase is unreachable, so recipes keep working; account and data requests get a 503
+// until the connection check passes, and the check is retried until it does.
+async function connectStore() {
+  if (process.env.AUTH_STORE === "memory") {
+    store = createMemoryStore();
+    console.log("Accounts and data use an in-memory store (AUTH_STORE=memory); they are lost on restart.");
+    return;
   }
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
+  const { SUPABASE_URL: url, SUPABASE_SECRET_KEY: secretKey } = process.env;
+  if (!url || !secretKey) {
+    console.warn("SUPABASE_URL and SUPABASE_SECRET_KEY are not set, so login, sign-up and saving are unavailable. Add them to .env.");
+    return;
+  }
+  const candidate = createSupabaseStore(createSupabaseClient(url, secretKey));
   try {
-    const response = await fetch(url, { signal: controller.signal });
-    const body = await response.text();
-    res.status(response.status).type(response.headers.get("content-type") || "application/json").send(body);
+    await candidate.ping();
+    store = candidate;
+    console.log("Connected to Supabase.");
   } catch (error) {
-    console.error("Spoonacular request failed.", error);
-    res.status(error.name === "AbortError" ? 504 : 502).json({ error: "Recipe provider is temporarily unavailable." });
-  } finally {
-    clearTimeout(timeout);
+    console.error(`Could not connect to Supabase. Check SUPABASE_URL, SUPABASE_SECRET_KEY, and that supabase/schema.sql has been run. Retrying in ${RETRY_MS / 1000}s.`, error.message);
+    setTimeout(connectStore, RETRY_MS);
   }
 }
 
-app.get("/api/recipes/search", async (req, res) => {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(req.query)) {
-    if (!allowedSearchParams.has(key) || typeof value !== "string") continue;
-    params.set(key, value);
-  }
-  params.set("apiKey", apiKey || "");
-  await forward(`${apiBaseUrl}/recipes/complexSearch?${params}`, res);
+createApp({ getStore: () => store }).listen(port, () => {
+  console.log(`API server listening on http://localhost:${port}`);
 });
-
-app.get("/api/recipes/:id/details", async (req, res) => {
-  if (!/^\d+$/.test(req.params.id)) return res.status(400).json({ error: "Recipe id must be numeric." });
-  const url = new URL(`${apiBaseUrl}/recipes/${req.params.id}/information`);
-  url.searchParams.set("includeNutrition", "true");
-  url.searchParams.set("apiKey", apiKey || "");
-  await forward(url.toString(), res);
-});
-
-app.listen(port, () => {
-  console.log(`Recipe proxy listening on http://localhost:${port}`);
-});
+connectStore();

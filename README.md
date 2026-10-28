@@ -23,8 +23,25 @@ npm install react-router-dom recharts lucide-react
 npm run dev
 ```
 
+## Accounts and data in Supabase
+
+Accounts, sessions and each account's data (profile, onboarding draft, meal plan, favorites, grocery checks, settings, food diary, custom foods, saved meals, recent foods, water and weights) are stored in Supabase Postgres. Only the Express server talks to Supabase, using `@supabase/supabase-js` with the secret key; the browser only calls `/api/auth/*` and `/api/data`.
+
+1. In the Supabase SQL Editor, run `supabase/schema.sql` (safe to re-run). It creates the tables, `updated_at` triggers, Row Level Security (on, with no policies, so the publishable key can read nothing) and the `replace_*` functions the server uses for atomic list updates.
+2. Put the project URL and secret key (Project Settings → API) in `.env`, never in client code:
+
+```
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SECRET_KEY=your_supabase_secret_key
+```
+
+3. Run `npm run db:check`. It signs up a throwaway account, writes and reads back every kind of data, and deletes it again, so a wrong key or a missing table shows up straight away.
+
+Without the Supabase variables the recipe proxy still runs, but login, sign-up and saving answer 503 (the server retries the connection every 30 seconds). `AUTH_STORE=memory` keeps accounts and data in memory for local testing, and the automated tests use that too.
+
 ## App flow
 
+0. **Log in** (`/login`): log in or create an account. Every other screen redirects here when nobody is signed in, then returns to the requested page. Accounts are stored in Supabase by the Express server (`server/auth.js`, `server/supabaseStore.js`): passwords are salted scrypt hashes, and the session is an httpOnly cookie whose token is stored only as a SHA-256 hash; expired sessions are never accepted. "Keep me signed in" keeps the session for 30 days; otherwise the cookie ends with the browser session (at most 24 hours). Each account's profile, plan, diary and favorites are saved on the server (`/api/data`, `src/context/UserDataContext.jsx`): changes appear at once and are saved in the background, with failed saves retried. A new account adopts data this browser saved locally before (including data saved before accounts existed), and the theme and recipe cache stay in the browser.
 1. **Onboarding** (`/onboarding`, 4 steps: personal info → body → activity → goal). New users always start here.
 2. **Results** (`/results`): BMR, TDEE and daily goal chart, macro split, and a one-line explanation of the goal. "Go to Dashboard" continues.
 3. **Dashboard** (`/dashboard`): today's goal, calories eaten, remaining, and progress. "Edit profile" reopens onboarding and recalculates the goal. Food preferences (`/preferences`) build the weekly meal plan.
